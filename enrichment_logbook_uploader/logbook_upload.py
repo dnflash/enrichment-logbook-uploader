@@ -130,7 +130,7 @@ def send_requests(payloads, df, headers):
         for i in range(len(payloads)):
             if payloads[i]:
                 print("Sending logbook payload - {}".format(format_date_custom(df["Tanggal"][i])))
-                r = session.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/StudentSave", headers=headers, json=payloads[i])
+                r = session.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/StudentSave", headers=headers, data=payloads[i])
                 print(r.text)
                 print()
 
