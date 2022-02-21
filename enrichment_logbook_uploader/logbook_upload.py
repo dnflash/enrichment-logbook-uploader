@@ -105,11 +105,10 @@ def generate_payload(df, logbook_header_id, headers):
             skipped_dates.append(format_date_custom(df["Tanggal"][i]))
             print("Payload for {} skipped, Error message: {}".format(format_date_custom(df["Tanggal"][i]), e))
 
-    print()
-    print("Skipped dates:")
-    for date in skipped_dates:
-        print(date)
-    print()
+    if skipped_dates:
+        print("\nSkipped dates:")
+        for date in skipped_dates:
+            print(date)
 
     get_logBook_response = requests.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/GetLogBook", headers=headers, data="logBookHeaderID="+logbook_header_id)
 
