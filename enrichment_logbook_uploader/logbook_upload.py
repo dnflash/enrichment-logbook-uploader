@@ -104,11 +104,10 @@ def generate_payload(df, logbook_header_id):
             skipped_dates.append(format_date_custom(df["Tanggal"][i]))
             print("Payload for {} skipped, Error message: {}".format(format_date_custom(df["Tanggal"][i]), e))
 
-    print()
-    print("Skipped dates:")
-    for date in skipped_dates:
-        print(date)
-    print()
+    if skipped_dates:
+        print("\nSkipped dates:")
+        for date in skipped_dates:
+            print(date)
 
     return payload_list
 
