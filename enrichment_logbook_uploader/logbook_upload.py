@@ -1,9 +1,10 @@
+from tkinter import OFF
 import pandas
 import requests
 import json
 import warnings
 from dateutil import parser
-
+from datetime import datetime
 
 _ACTIVITY_ENRICHMENT_URL = "https://activity-enrichment.apps.binus.ac.id"
 
@@ -81,7 +82,7 @@ def get_logbookheaderid(month_name, headers):
     raise KeyError(f"Month '{month_name}' not found")
 
 
-def generate_payload(df, logbook_header_id):
+def generate_payload(df, logbook_header_id, headers):
     payload_list = []
     skipped_dates = []
 
@@ -110,6 +111,33 @@ def generate_payload(df, logbook_header_id):
         print(date)
     print()
 
+    get_logBook_response = requests.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/GetLogBook", headers=headers, data="logBookHeaderID="+logbook_header_id)
+
+    emptyCounter = 0
+    dateList = {}
+    date = 0
+    for days in json.loads(get_logBook_response.text)["data"]:
+        if days["id"] == "00000000-0000-0000-0000-000000000000":
+            dateList[date] = days["date"]
+            emptyCounter = emptyCounter + 1
+        date = date + 1
+
+    print(dateList)
+    if emptyCounter != 0:
+        if yn_prompt("There are currently " + str(emptyCounter) + " empty slot(s) in your logBook! Do you want to set it to OFF?"):
+            for emptyDate in dateList:
+                payload = {"model[ID]": "00000000-0000-0000-0000-000000000000",
+                        "model[LogBookHeaderID]": logbook_header_id,
+                        "model[Date]": dateList[emptyDate],
+                        "model[Activity]": "OFF",
+                        "model[ClockIn]": "OFF",
+                        "model[ClockOut]": "OFF",
+                        "model[Description]": "OFF",
+                        "model[flagjulyactive]": "false"}
+
+                payload_list.insert(emptyDate, payload)
+                print("Generated payload for {}".format(format_date_custom(date_parser(dateList[emptyDate]))))
+
     return payload_list
 
 
@@ -129,7 +157,7 @@ def send_requests(payloads, df, headers):
     with requests.Session() as session:
         for i in range(len(payloads)):
             if payloads[i]:
-                print("Sending logbook payload - {}".format(format_date_custom(df["Tanggal"][i])))
+                print("Sending logbook payload - {}".format(format_date_custom(date_parser(payloads[i]["model[Date]"]))))
                 r = session.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/StudentSave", headers=headers, data=payloads[i])
                 print(r.text)
                 print()
@@ -190,7 +218,7 @@ def main(activity_enrichment_cookies=None):
 
             raise SystemExit(1)
 
-    payloads = generate_payload(df, logbook_header_id)
+    payloads = generate_payload(df, logbook_header_id, headers)
 
     print()
 
