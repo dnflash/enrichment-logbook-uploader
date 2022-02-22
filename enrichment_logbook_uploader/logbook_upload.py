@@ -4,7 +4,6 @@ import json
 import warnings
 from dateutil import parser
 
-
 _ACTIVITY_ENRICHMENT_URL = "https://activity-enrichment.apps.binus.ac.id"
 
 
@@ -112,6 +111,36 @@ def generate_payload(df, logbook_header_id):
     return payload_list
 
 
+def generate_payload_for_empty_dates(logbook_header_id, headers):
+
+    get_logbook_response = requests.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/GetLogBook",
+                                         headers=headers, data="logBookHeaderID="+logbook_header_id)
+
+    payload_list = []
+    empty_dates = []
+
+    for date in json.loads(get_logbook_response.text)["data"]:
+        if date["id"] == "00000000-0000-0000-0000-000000000000":
+            empty_dates.append(date["date"])
+
+    if empty_dates:
+        if yn_prompt(f"There are currently {len(empty_dates)} empty slot(s) in your log book! Do you want to set it to OFF?"):
+            for date in empty_dates:
+                payload = {"model[ID]": "00000000-0000-0000-0000-000000000000",
+                           "model[LogBookHeaderID]": logbook_header_id,
+                           "model[Date]": date,
+                           "model[Activity]": "OFF",
+                           "model[ClockIn]": "OFF",
+                           "model[ClockOut]": "OFF",
+                           "model[Description]": "OFF",
+                           "model[flagjulyactive]": "false"}
+
+                payload_list.append(payload)
+                print("Generated payload for {}".format(format_date_custom(date_parser(date))))
+
+    return payload_list
+
+
 def build_headers(activity_enrichment_cookies):
     return {"User-Agent": "Mozilla/5.0",
             "Accept": "*/*",
@@ -124,11 +153,11 @@ def build_headers(activity_enrichment_cookies):
             "Cookie": activity_enrichment_cookies}
 
 
-def send_requests(payloads, df, headers):
+def send_requests(payloads, headers):
     with requests.Session() as session:
         for i in range(len(payloads)):
             if payloads[i]:
-                print("Sending logbook payload - {}".format(format_date_custom(df["Tanggal"][i])))
+                print("Sending logbook payload - {}".format(format_date_custom(date_parser(payloads[i]["model[Date]"]))))
                 r = session.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/StudentSave", headers=headers, data=payloads[i])
                 print(r.text)
                 print()
@@ -194,12 +223,20 @@ def main(activity_enrichment_cookies=None):
     print()
 
     if yn_prompt("Upload logbook to Binus?"):
-        send_requests(payloads, df, headers=headers)
+        send_requests(payloads, headers=headers)
         print("Operation completed...")
 
     else:
         print("Operation cancelled...")
         raise SystemExit(1)
+
+    payloads_empty_dates = generate_payload_for_empty_dates(logbook_header_id, headers)
+
+    if payloads_empty_dates:
+        send_requests(payloads_empty_dates, headers=headers)
+        print("Operation completed...")
+
+    print("Thank you for using our app")
 
 
 if __name__ == "__main__":
