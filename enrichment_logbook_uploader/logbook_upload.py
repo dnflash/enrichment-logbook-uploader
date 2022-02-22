@@ -80,7 +80,7 @@ def get_logbookheaderid(month_name, headers):
     raise KeyError(f"Month '{month_name}' not found")
 
 
-def generate_payload(df, logbook_header_id, headers):
+def generate_payload(df, logbook_header_id):
     payload_list = []
     skipped_dates = []
 
@@ -110,32 +110,33 @@ def generate_payload(df, logbook_header_id, headers):
 
     return payload_list
 
+
 def generate_payload_for_empty_dates(logbook_header_id, headers):
-    
+
+    get_logbook_response = requests.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/GetLogBook",
+                                         headers=headers, data="logBookHeaderID="+logbook_header_id)
+
     payload_list = []
-
-    get_logbook_response = requests.post(_ACTIVITY_ENRICHMENT_URL + "/LogBook/GetLogBook", headers=headers, data="logBookHeaderID="+logbook_header_id)
-
     empty_dates = []
+
     for date in json.loads(get_logbook_response.text)["data"]:
         if date["id"] == "00000000-0000-0000-0000-000000000000":
             empty_dates.append(date["date"])
 
     if empty_dates:
-        if yn_prompt("There are currently " + len(empty_dates) + " empty slot(s) in your logBook! Do you want to set it to OFF?"):
+        if yn_prompt(f"There are currently {len(empty_dates)} empty slot(s) in your log book! Do you want to set it to OFF?"):
             for date in empty_dates:
                 payload = {"model[ID]": "00000000-0000-0000-0000-000000000000",
-                        "model[LogBookHeaderID]": logbook_header_id,
-                        "model[Date]": date,
-                        "model[Activity]": "OFF",
-                        "model[ClockIn]": "OFF",
-                        "model[ClockOut]": "OFF",
-                        "model[Description]": "OFF",
-                        "model[flagjulyactive]": "false"}
+                           "model[LogBookHeaderID]": logbook_header_id,
+                           "model[Date]": date,
+                           "model[Activity]": "OFF",
+                           "model[ClockIn]": "OFF",
+                           "model[ClockOut]": "OFF",
+                           "model[Description]": "OFF",
+                           "model[flagjulyactive]": "false"}
 
                 payload_list.append(payload)
                 print("Generated payload for {}".format(format_date_custom(date_parser(date))))
-
 
     return payload_list
 
@@ -217,7 +218,7 @@ def main(activity_enrichment_cookies=None):
 
             raise SystemExit(1)
 
-    payloads = generate_payload(df, logbook_header_id, headers)
+    payloads = generate_payload(df, logbook_header_id)
 
     print()
 
@@ -234,12 +235,9 @@ def main(activity_enrichment_cookies=None):
     if payloads_empty_dates:
         send_requests(payloads_empty_dates, headers=headers)
         print("Operation completed...")
-    
-    else:
-        print("Operation cancelled...")
-        raise SystemExit(1)
 
-    print("Thank you for using our services :*")
+    print("Thank you for using our app")
+
 
 if __name__ == "__main__":
     try:
